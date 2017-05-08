@@ -4,11 +4,11 @@ int attack_f = 10;  // attack period (how soon the compressor will start attenua
 int release_f = 40; // release period (how soon the compressor will soften attenuation after signals have become more silent),
                     // given in measurement frame units. Default setting corresponds to 200ms; Max buf_len.
                     // Does not have an effect if <= attack_f
-int threshold = 20; // minimum signal amplitude before the compressor will kick in. Each unit corresponds to roughly 5mV
+int threshold = 25; // minimum signal amplitude before the compressor will kick in. Each unit corresponds to roughly 5mV
                     // peak-to-peak.
-float inv_ratio = .5;  // dampening applied to signals exceeding the threshold. 0 corresponds to no compression, 1 corresponds
-                    // to limiting the signal to the threshold value (if possible: see below)
-                    // (Inverse of "ratio" parameter of typical compressors)
+float ratio = 2.5;  // dampening applied to signals exceeding the threshold. n corresponds to limiting the signal to a level of
+                    // threshold level plus 1/3 of the level in excess of the threshold (if possible: see duty_min, below)
+                    // 1(min) = no attenuation; 20(max), essentially limit to threshold, aggressively
 
 //// Some further constants that you will probably not have to tweak ////
 #define DEBUG 1           // serial communication appears to introduce audible noise ("ticks"), thus debugging is diabled by default
@@ -141,16 +141,42 @@ void loop() {
   // calculate new attenuation settings
   // first caculate based on attack period
   const int attack_threshold = threshold * attack_f;
-  const float attack_overshoot = max (0, (attack_mova - attack_threshold) / (float) attack_threshold);
-  const int attack_duty = 255 / (attack_overshoot * inv_ratio + 1);
+  int attack_duty = 255;
+  if (attack_mova > attack_threshold) {
+    const int target_level = (attack_mova - attack_threshold) / ratio + attack_threshold;
+    attack_duty = (255 * (int32_t) target_level) / attack_mova;
+#if DEBUG
+  if (it == 0) {
+    Serial.print(attack_mova);
+    Serial.print("-");
+    Serial.print(attack_threshold);
+    Serial.print("-");
+    Serial.print(ratio);
+    Serial.print("-");
+    Serial.print(target_level);
+    Serial.print("-");
+    Serial.println(attack_duty);
+  }
+#endif
+  }
   // if the new duty setting is _below_ the current, based on attack period, check release window to see, if
   // the time has come to release attenuation, yet:
-  if (attack_duty >= duty) duty = attack_duty;
+  if (attack_duty < duty) duty = attack_duty;
   else {
+    int release_duty = 255;
     const int release_threshold = threshold * release_f;
-    const float release_overshoot = max (0, (release_mova - release_threshold) / (float) release_threshold);
-    const int release_duty = 255 / (release_overshoot * inv_ratio + 1);
-    if (release_duty < duty) duty = release_duty;
+    if (release_mova > release_threshold) {
+      const int target_level = (release_mova - release_threshold) / ratio + release_threshold;
+      release_duty = (255 * (int32_t) target_level) / release_mova;
+    } else {
+      release_duty = 255;
+    }
+    if (release_duty >= duty) duty = release_duty;
+#if DEBUG
+    else {
+      Serial.println("waiting for release");
+    }
+#endif
   }
 
   OCR2B = duty; // enable the new duty cycle
@@ -158,6 +184,10 @@ void loop() {
   if ((display_hold < 90) && handleControls()) { // check state of control buttons. If any was pressed, the status LEDs shall not be
                         // updated for the next half second (they will indicate control status, instead)
     display_hold = 100;
+#if DEBUG
+    Serial.print("threshold");
+    Serial.println(threshold);
+#endif
   }
   if (display_hold) {
     --display_hold;
@@ -181,13 +211,13 @@ bool handleControls () {
     return true;
   }
   if (!digitalRead(pin_threshold)) {
-    threshold = min(signal_warn / 2, min(threshold+1, (int) threshold*1.1));
+    threshold = min(signal_warn / 2, max(threshold+1, (int) threshold*1.05));
     indicateControls(threshold, 0, signal_warn / 2);
     return true;
   }
   if (!digitalRead(pin_ratio)) {
-    inv_ratio = min(1.0, inv_ratio + .05);
-    indicateControls(inv_ratio*100, 0, 100);
+    ratio = min(20, max (ratio + .1, ratio * 1.05));
+    indicateControls(ratio*100, 100, 2000);
     return true;
   }
   digitalWrite(pin_control_minus, LOW);
@@ -203,13 +233,13 @@ bool handleControls () {
     return true;
   }
   if (!digitalRead(pin_threshold)) {
-    threshold = max(0, min(threshold-1, (int) threshold/1.1));
+    threshold = max(0, min(threshold-1, (int) threshold/1.05));
     indicateControls(threshold, 0, signal_warn / 2);
     return true;
   }
   if (!digitalRead(pin_ratio)) {
-    inv_ratio = max(0, inv_ratio - .05);
-    indicateControls(inv_ratio*100, 0, 100);
+    ratio = max(1, min (ratio - .1, ratio / 1.05));
+    indicateControls(ratio*100, 100, 2000);
     return true;
   }
   return false;
