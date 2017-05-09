@@ -1,6 +1,9 @@
 # Very low part count audio compressor based on Arduino
 
-This project aims to provide a simple to build audio-compressor based on an arduino / genuino.
+This project aims to provide a simple to build audio-compressor based on an Arduino / Genuino.
+
+Note that we are assuming an **ATMega328 or ATMega168** based board, here (such as Arduino Uno, Nano, or Pro Mini),
+running at **16 MHz** and **5V**. Circuit and code can clearly be adjusted to other boards, but you'll have to do that, yourself.
 
 ## A small bit of theory
 
@@ -19,7 +22,7 @@ Sounds like a perfect job for a microcontroller, right?
 Beyond the logic and timing, however, there are two main technical difficulties: First, we need to sense the signal level to work on. Ok, not terribly difficult,
 but does require some tricks to achieve with an acceptable sampling rate on a microcontroller. Second, we need to modify (or output) the signal, accordingly. Typical
 approaches involve voltage controlled amplifiers (VCAs), J-FETs, or some other technique to transform a voltage signal into a variable resistance. Well-established,
-but not quite trivial, if you read up on it. Instead of these, I decided to capitalize on the main advantage of a microprocessor: Doing simple things _fast_. In this
+but not quite trivial, if you read up on it. Instead of these, I decided to capitalize on the main advantage of a microprocessor: Doing simple digital things _fast_. In this
 case this means switch the audio signal on and off at a rate much higher than audible sounds, in order to achieve a variable resistance very easily.
 
 ## A first basic version
@@ -42,7 +45,8 @@ the Arduino to detect the current signal level, and - remember - low signal leve
 The more interesting part of the circuit is the upper half. Two N-FETs are connected back to back (drain of the first connected to source of the second and vice versa), which are both controlled
 synchronously from Arduino pin D3. These two FETs simply function as a _simple_ analog switch. The good news is that you are pretty likely to have those N-FETs in your part-collection already:
 A pair of 2N7000 or any other common small signal N-FET will do ok. Importantly, the FET should be _far_ inside the on-region at 4-5 Volts. Also, of course, if should be able to handle whatever current
-will be flowing. A somewhat better choice than 2N7000 would be IRLML2502, and an even better choice will be to use a dedicated analog switch (in this particular schematic
+will be flowing. However, also, it should have a rather high bdoy diode forward voltage drop, as that will limit how large voltages we can switch off, reliably.
+A somewhat better choice than the 2N7000 would be the IRLML2502, and an even better choice will be to use a dedicated analog switch (in this particular schematic
 you'd want one supporting negative voltage swings!), but again, the 2N7000 will perform ok-ish, and is enough for connecting a headphone, so try that, first. Also, again, the exact resistor values will
 not matter. The 220 Ohms is for limiting the gate (dis-)charge current, to what the Arduino can safely handle. The 470 Ohms is to provide a bit of isolation from noise in the power supply.
 
@@ -82,6 +86,6 @@ Ok, so how to get started?
 
 ## Footnotes
 
-[1] Originally, I was switch the audio signal line, instead of audio ground. Switching on the ground connection has two advantages: First, the N-FETs gate-to-source potential will be independent of the
+[1] Originally, I was switching the audio signal line, instead of audio ground. Switching on the ground connection has two advantages: First, the N-FETs gate-to-source potential will be (mostly) independent of the
 current signal level, allowing for more linearity. Second, this way subject to some caveats you can switch on and off a stereo signal with a single N-FET pair (but alternatively, connect a second pair in parallel,
 also connected to pin D3). Of course, if your next stage is e.g. a high impedance amp, rather than a speaker coil, you should bias "Audio Ground Out" to ground via a largish resistor (some k Ohms).
