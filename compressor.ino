@@ -39,9 +39,9 @@ const int duty_min = 10;  // ceiling value for attenuation (lower values = more 
 const int duty_warn = 2 * duty_min;  // See above. At attenuation beyond this (i.e. smaller numbers), warning LED will flash.
                     // Reaching this point on occasion is quite benign. Reaching this point much of the time means too strong
                     // signal, too low threshold setting, or too aggressive inv_ratio.
-const int signal_warn = 300;  // A warning LED will flash for signals exceeding this amplitude (5mv per unit, peak-to-peak) as
-                    // it is probably (almost) too much for the circuit too handle (default value corresponds to about +-750mV
-                    // in order to stay below typical 2N7000 body diode forward voltage drop of .88V)
+const int signal_warn = 500;  // A warning LED will flash for signals exceeding this amplitude (5mv per unit, peak-to-peak) as
+                    // it is probably (almost) too much for the circuit too handle (default value corresponds to about +-1250mV
+                    // in order to stay below the 1.7V signal swing (centered at 3.3V) that the Arduino can handle.
 
 //// Adjustable pin assignments
 const int pin_led_warn = 13;
@@ -230,7 +230,7 @@ bool handleControls () {
   }
   if (!digitalRead(pin_threshold)) {
     threshold = min(signal_warn / 2, max(threshold+1, (int) threshold*1.05));
-    indicateControls(threshold, 0, signal_warn / 2);
+    indicateControls(threshold, 12, signal_warn / 2);
     return true;
   }
   if (!digitalRead(pin_ratio)) {
@@ -251,8 +251,8 @@ bool handleControls () {
     return true;
   }
   if (!digitalRead(pin_threshold)) {
-    threshold = max(0, min(threshold-1, (int) threshold/1.05));
-    indicateControls(threshold, 0, signal_warn / 2);
+    threshold = max(12, min(threshold-1, (int) threshold/1.05));
+    indicateControls(threshold, 12, signal_warn / 2);
     return true;
   }
   if (!digitalRead(pin_ratio)) {
