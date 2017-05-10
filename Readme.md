@@ -83,6 +83,29 @@ Ok, so how to get started?
 *Note*: When adjusting parameters, the status LEDs will briefly change their role from indicating signal and compression levels to a very rough indication of the parameter that was changed. No LEDs active
 signifies a very low value, with LEDs lighting up from D12 to D10 in that order for higher values. If either the low or high end of the scale is reached D13 will light up in addition.
 
+## Background: Inside the ATMega black box
+
+The cuircit is simple, you now know how to adjust parameters, but what exactly is happening in the code?
+
+- Sampling windows
+- Moving averages
+- The actual volume adjustment is then calculated as follows: If the current signal is *n*dB above the threshold level, divide *n* by the *ratio*, and adjust the signal level to an output of *threshold* + *n*/*ratio* dB.
+  Now, since decibel is a logarithmic scale, that translates to the following pseudo-code (*current* is the current output voltage level, *threshold* is the threshold voltage level):
+  ```
+    target_level = exp((log(current) - log(threshold))/ratio + log(threshold));
+  ```
+  Now the ATMega is not exactly fast at floating point math, let alone at calculating logs. The above is just prohibitively slow. Fortunately it can be optimized:
+  ```
+    target_level = threshold * exp(log(current)/ratio) / exp(log(threshold)/ratio;
+    // rewriting the division by ratio in the exponent:
+    target_level = threshold * pow(exp(log(current)), 1/ratio) / pow(exp(log(threshold)), 1/ratio);
+    // simplifying:
+    target_level = threshold * pow(current, 1/ratio) / pow (threshold, 1/ratio);
+    // great! The logs are gone. Now:
+    target_level = threshold * pow(current/threshold, 1/ratio);
+  ```
+  Now the ATMega can handle that calculation just fine. As a last step, we simply set the duty-cycle of Pin 3 to be 255 * target_level / current_level.
+
 ## More to come
 
 ... but writing this up is more work than it may seem. If you find this useful, consider donating a bread crumb or two via Paypal: thomas.friedrichsmeier@gmx.de

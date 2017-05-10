@@ -27,6 +27,9 @@ int threshold = 18; // minimum signal amplitude before the compressor will kick 
 float ratio = 3.0;  // dampening applied to signals exceeding the threshold. n corresponds to limiting the signal to a level of
                     // threshold level plus 1/3 of the level in excess of the threshold (if possible: see duty_min, below)
                     // 1(min) = no attenuation; 20(max), essentially limit to threshold, aggressively
+const float max_transition_rate = 1.11; // although the moving averages for attack and release will result in smooth transitions
+                    // of the compression rate in most regular cases sudden signal spikes can result in abrupt transitions, introducing
+                    // additional artefacts. This limits the maximum speed of the transition to +/- 11% of current value.
 
 //// Some further constants that you will probably not have to tweak ////
 #define DEBUG 1           // serial communication appears to introduce audible noise ("ticks"), thus debugging is diabled by default
@@ -68,6 +71,7 @@ int32_t now = 0;          // start time of current loop
 int32_t last = 0;         // time of last loop
 int duty = 255;           // current PWM duty cycle for attenuator switch(es) (0: hard off, 255: no attenuation)
 byte display_hold = 0;
+float invratio = 1 / ratio;  // inverse of ratio. Saves some floating point divisions
 
 #if DEBUG
 int it = 0;
@@ -162,7 +166,10 @@ void loop() {
   const int attack_threshold = threshold * attack_f;
   int attack_duty = 255;
   if (attack_mova > attack_threshold) {
-    const int target_level = (attack_mova - attack_threshold) / ratio + attack_threshold;
+    const int target_level = attack_threshold * pow ((float) attack_mova / attack_threshold, invratio);
+// Instead of the logrithmic volume calculation above, the faster linear one below seems too yield
+// acceptable results, too. Hoever, the Arduino is fast enough, so we do the "real" thing.
+//   const int target_level = (attack_mova - attack_threshold) / ratio + attack_threshold;
     attack_duty = (255 * (int32_t) target_level) / attack_mova;
 #if DEBUG
   if (it == 0) {
@@ -180,20 +187,20 @@ void loop() {
   }
   // if the new duty setting is _below_ the current, based on attack period, check release window to see, if
   // the time has come to release attenuation, yet:
-  if (attack_duty < duty) duty = attack_duty;
+  if (attack_duty < duty) duty = max (attack_duty, duty / max_transition_rate);
   else {
     int release_duty = 255;
     const int release_threshold = threshold * release_f;
     if (release_mova > release_threshold) {
-      const int target_level = (release_mova - release_threshold) / ratio + release_threshold;
+      const int target_level = release_threshold * pow ((float) release_mova / release_threshold, invratio);
       release_duty = (255 * (int32_t) target_level) / release_mova;
     } else {
       release_duty = 255;
     }
-    if (release_duty >= duty) duty = release_duty;
+    if (release_duty >= duty) duty = min (release_duty, duty * max_transition_rate);
 #if DEBUG
     else {
-      Serial.println("waiting for release");
+      Serial.println("hold");
     }
 #endif
   }
@@ -203,8 +210,9 @@ void loop() {
   if ((display_hold < 90) && handleControls()) { // check state of control buttons. If any was pressed, the status LEDs shall not be
                         // updated for the next half second (they will indicate control status, instead)
     display_hold = 100;
+    invratio = 1 / ratio;
 #if DEBUG
-    Serial.print("threshold");
+    Serial.print("threshold - ");
     Serial.println(threshold);
 #endif
   }
