@@ -59,7 +59,8 @@ the same idea.
 
 ## Adding status indicators and parameter control
 
-With some luck, the above circuit will simply work for you, but in many cases you will have to do some tuning. In order to do that, easily, let's add some status indicators and contols:
+With some luck, the above circuit will simply work for you, but in many cases you will have to do some tuning. You can do that tuning entirely from the sketch, by adjusting the variable values near the
+top of the code (see the comments in the code, and the following section for details). However, for tuning parameters more comfortably and at runtime, you can easily add some status indicators and controls:
 
 - Connect four LEDs (with appropriate resistors) from pins D10 through D13 to ground. I suggest using green on D10, yellow and D11 and red on D12 and D13. 
 - Connect a 2 by 4 button matrix to pins D4 through D9. D8 and D9 should be connected to the two row wires, D4 through D7 should be connected to the four column wires.
@@ -78,6 +79,9 @@ Ok, so how to get started?
    compressor will do is -28dB; the yellow LED at D11 signals tuning down to 1/2 or -6dB).
 4. For adjusting attack and release, it's hardest to outline a clear procedure, but also these will generally work quite fine at their default values. Note that too small values of attack can lead
    to artifacts, too small values of release can lead to the compressor "pumping" on certain sounds.
+
+*Note*: When adjusting parameters, the status LEDs will briefly change their role from indicating signal and compression levels to a very rough indication of the parameter that was changed. No LEDs active
+signifies a very low value, with LEDs lighting up from D12 to D10 in that order for higher values. If either the low or high end of the scale is reached D13 will light up in addition.
 
 ## More to come
 

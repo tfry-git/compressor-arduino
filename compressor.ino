@@ -22,9 +22,9 @@ int attack_f = 10;  // attack period (how soon the compressor will start attenua
 int release_f = 40; // release period (how soon the compressor will soften attenuation after signals have become more silent),
                     // given in measurement frame units. Default setting corresponds to 200ms; Max buf_len.
                     // Does not have an effect if <= attack_f
-int threshold = 25; // minimum signal amplitude before the compressor will kick in. Each unit corresponds to roughly 5mV
+int threshold = 18; // minimum signal amplitude before the compressor will kick in. Each unit corresponds to roughly 5mV
                     // peak-to-peak.
-float ratio = 2.5;  // dampening applied to signals exceeding the threshold. n corresponds to limiting the signal to a level of
+float ratio = 3.0;  // dampening applied to signals exceeding the threshold. n corresponds to limiting the signal to a level of
                     // threshold level plus 1/3 of the level in excess of the threshold (if possible: see duty_min, below)
                     // 1(min) = no attenuation; 20(max), essentially limit to threshold, aggressively
 
